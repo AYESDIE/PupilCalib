@@ -124,7 +124,7 @@ class PupilCalibManager(QWidget):
         self.calibrateWorldCamera()
         self.applyWorldCameraCalibration()
 
-        self.pupil_world_frame, self.pupil_eye_left_frame, self.pupil_eye_right_frame = self.pupil_manager.capture()
+        self.pupil_world_frame, self.pupil_eye_left_frame, self.pupil_eye_right_frame = self.pupil_manager.captureFrame()
         self.pupil_world_image.setPixmap(QPixmap(QImage(self.pupil_world_frame,
                                                         self.pupil_world_frame.shape[1],
                                                         self.pupil_world_frame.shape[0],

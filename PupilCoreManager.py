@@ -85,7 +85,7 @@ class PupilCoreManager():
             print(i)
             i = i + 1
 
-    def capture(self):
+    def captureFrame(self):
         return [self.recent_world, self.recent_eye_right, self.recent_eye_left]
 
     def cv2(self):
@@ -142,12 +142,14 @@ class PupilCoreManager():
             self.recent_world = cv2.resize(cv2.cvtColor(numpy.frombuffer(
                 r_world, dtype=numpy.uint8
             ).reshape(r_wH, r_wW, 3), cv2.COLOR_BGR2GRAY), (640, 360), cv2.INTER_AREA)
-            self.recent_eye_right = cv2.cvtColor(numpy.frombuffer(
+            self.recent_eye_right = cv2.rotate(cv2.cvtColor(numpy.frombuffer(
                 r_rightEye, dtype=numpy.uint8
-            ).reshape(r_rH, r_rW, 3), cv2.COLOR_BGR2GRAY)
+            ).reshape(r_rH, r_rW, 3), cv2.COLOR_BGR2GRAY), cv2.ROTATE_180)
             self.recent_eye_left = cv2.cvtColor(numpy.frombuffer(
                 r_leftEye, dtype=numpy.uint8
             ).reshape(r_lH, r_lW, 3), cv2.COLOR_BGR2GRAY)
+
+
 
 
 if __name__=="__main__":

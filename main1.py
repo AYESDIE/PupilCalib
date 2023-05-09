@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import *
 from PupilCalibManager import PupilCalibManager
-from CameraManager import CameraManager
+from CameraManager import CameraManager, CoreManager
 from IDSManager import IDSManager
 from PupilCoreManager import PupilCoreManager
 import sys
