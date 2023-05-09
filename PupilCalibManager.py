@@ -18,6 +18,7 @@ class PupilCalibManager(QWidget):
 
         self.world_camera_layout = QVBoxLayout()
         self.pupil_camera_layout = QVBoxLayout()
+        self.pupil_eye_layout = QHBoxLayout()
 
         # main camera stuff
         self.camera_manager = camera_manager
@@ -57,10 +58,8 @@ class PupilCalibManager(QWidget):
         self.showMaximized()
         self.raise_()
 
-        self.setLayout(self.main_layout)
-
         self.update_frame_timer = QTimer()
-        self.update_frame_timer.start(100)
+        self.update_frame_timer.start(1)
 
         self.button_cooldown_timer = QTimer()
         self.button_cooldown_timer.setSingleShot(True)
@@ -70,25 +69,20 @@ class PupilCalibManager(QWidget):
         self.button.clicked.connect(self.onButtonClick)
 
         self.update_frame_timer.timeout.connect(self.updateFrame)
-
-        # self.camera_feed_layout.addWidget(self.current_image, 1, 1)
-        # self.camera_feed_layout.addWidget(self.calibrate_image, 1, 2)
-        # self.camera_feed_layout.addWidget(self.pupil_world_image, 2, 1)
-        # self.camera_feed_layout.addWidget(self.pupil_eye_left_image, 2, 2)
-        # self.camera_feed_layout.addWidget(self.pupil_eye_right_image, 2, 3)
-        # self.output_layout.addLayout(self.camera_feed_layout, 90)
-        # self.output_layout.addWidget(self.button, 10)
         self.pupil_camera_layout.addWidget(self.pupil_world_image)
-        self.pupil_camera_layout.addWidget(self.pupil_eye_left_image)
-        self.pupil_camera_layout.addWidget(self.pupil_eye_right_image)
+        self.pupil_eye_layout.addWidget(self.pupil_eye_left_image)
+        self.pupil_eye_layout.addWidget(self.pupil_eye_right_image)
+        self.pupil_camera_layout.addLayout(self.pupil_eye_layout)
 
-        self.world_camera_layout.addWidget(self.current_image, 46)
-        self.world_camera_layout.addWidget(self.calibrate_image, 46)
+        self.world_camera_layout.addWidget(self.current_image, 40)
+        self.world_camera_layout.addWidget(self.calibrate_image, 40)
         self.world_camera_layout.addWidget(self.button, 8)
 
         self.main_layout.addLayout(self.pupil_camera_layout, 1, 1)
         self.main_layout.addLayout(self.world_camera_layout, 1, 2)
 
+
+        self.setLayout(self.main_layout)
 
     def onButtonClick(self):
         self.b_calibrate_world_camera = True

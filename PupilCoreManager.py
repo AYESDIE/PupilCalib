@@ -28,9 +28,11 @@ class PupilCoreManager():
         # open a sub port to listen to pupil
         self.sub = self.context.socket(zmq.SUB)
         self.sub.connect("tcp://{}:{}".format(addr, sub_port))
-        #self.sub.setsockopt(zmq.LINGER, 5)
+        self.sub.setsockopt(zmq.LINGER, 1)
         #self.sub.setsockopt(zmq.RCVHWM, 10)
-        self.sub.setsockopt(zmq.CONFLATE, 1)
+        self.sub.setsockopt(zmq.RCVHWM, 20)
+        self.sub.setsockopt(zmq.SNDHWM, 20)
+        #self.sub.setsockopt(zmq.CONFLATE, 1)
         self.sub.setsockopt_string(zmq.SUBSCRIBE, "frame.")
 
         # set subscriptions to topics
@@ -42,15 +44,11 @@ class PupilCoreManager():
         self.notify({"subject": "frame_publishing.set_format", "format": self.FRAME_FORMAT})
 
         self.recent_world = numpy.zeros((10, 10))
-        self.recent_eye0 = numpy.zeros((10, 10))
-        self.recent_eye1 = numpy.zeros((10, 10))
+        self.recent_eye_right = numpy.zeros((10, 10))
+        self.recent_eye_left = numpy.zeros((10, 10))
 
-        # with multiprocessing.Pool(4) as pool:
-        #     pool.map(self.qqthread, [])
-
-        # self.inf = threading.Thread(target = )
-
-        print("ugh")
+        self.pupil_thread = threading.Thread(target=self.ppc_thread_worker)
+        self.pupil_thread.start()
 
     def notify(self, notification):
         """Sends ``notification`` to Pupil Remote"""
@@ -88,70 +86,71 @@ class PupilCoreManager():
             i = i + 1
 
     def capture(self):
-        b_gotWorld = False
-        b_gotLeftEye = False
-        b_gotRightEye = False
-
-        r_world = None
-        r_wH = None
-        r_wW = None
-        r_leftEye = None
-        r_rH = None
-        r_rW = None
-        r_rightEye = None
-        r_lH = None
-        r_lW = None
-        while not b_gotWorld or not b_gotLeftEye or not b_gotRightEye:
-            if self.has_new_data_available():
-                topic, msg = self.recv_from_sub()
-
-                if topic.startswith("frame.") and msg["format"] != self.FRAME_FORMAT:
-                    print(
-                        f"different frame format ({msg['format']}); "
-                        f"skipping frame from {topic}"
-                    )
-                    return
-
-                if topic == "frame.world":
-                    r_world = msg["__raw_data__"][0]
-                    r_wW = msg["width"]
-                    r_wH = msg["height"]
-                    b_gotWorld = True
-
-
-                elif topic == "frame.eye.0":
-                    r_rightEye = msg["__raw_data__"][0]
-                    r_rW = msg["width"]
-                    r_rH = msg["height"]
-                    b_gotRightEye = True
-
-                elif topic == "frame.eye.1":
-                    r_leftEye = msg["__raw_data__"][0]
-                    r_lW = msg["width"]
-                    r_lH = msg["height"]
-                    b_gotLeftEye = True
-
-        self.recent_world = cv2.resize(cv2.cvtColor(numpy.frombuffer(
-            r_world, dtype=numpy.uint8
-        ).reshape(r_wH, r_wW, 3), cv2.COLOR_BGR2GRAY), (640, 360), cv2.INTER_AREA)
-        self.recent_eye0 = cv2.cvtColor(numpy.frombuffer(
-            r_rightEye, dtype=numpy.uint8
-        ).reshape(r_rH, r_rW, 3), cv2.COLOR_BGR2GRAY)
-        self.recent_eye1 = cv2.cvtColor(numpy.frombuffer(
-            r_leftEye, dtype=numpy.uint8
-        ).reshape(r_lH, r_lW, 3), cv2.COLOR_BGR2GRAY)
-
-        return [self.recent_world, self.recent_eye0, self.recent_eye1]
+        return [self.recent_world, self.recent_eye_right, self.recent_eye_left]
 
     def cv2(self):
         cv2.imshow("world", self.recent_world)
-        cv2.imshow("eye0", self.recent_eye0)
-        cv2.imshow("eye1", self.recent_eye1)
+        cv2.imshow("eye_right", self.recent_eye_right)
+        cv2.imshow("eye_left", self.recent_eye_left)
         cv2.waitKey(1)
+
+    def ppc_thread_worker(self):
+        while True:
+            b_gotWorld = False
+            b_gotLeftEye = False
+            b_gotRightEye = False
+
+            r_world = None
+            r_wH = None
+            r_wW = None
+            r_leftEye = None
+            r_rH = None
+            r_rW = None
+            r_rightEye = None
+            r_lH = None
+            r_lW = None
+            while not b_gotWorld or not b_gotLeftEye or not b_gotRightEye:
+                if self.has_new_data_available():
+                    topic, msg = self.recv_from_sub()
+
+                    if topic.startswith("frame.") and msg["format"] != self.FRAME_FORMAT:
+                        print(
+                            f"different frame format ({msg['format']}); "
+                            f"skipping frame from {topic}"
+                        )
+                        return
+
+                    if topic == "frame.world":
+                        r_world = msg["__raw_data__"][0]
+                        r_wW = msg["width"]
+                        r_wH = msg["height"]
+                        b_gotWorld = True
+
+
+                    elif topic == "frame.eye.0":
+                        r_rightEye = msg["__raw_data__"][0]
+                        r_rW = msg["width"]
+                        r_rH = msg["height"]
+                        b_gotRightEye = True
+
+                    elif topic == "frame.eye.1":
+                        r_leftEye = msg["__raw_data__"][0]
+                        r_lW = msg["width"]
+                        r_lH = msg["height"]
+                        b_gotLeftEye = True
+
+            self.recent_world = cv2.resize(cv2.cvtColor(numpy.frombuffer(
+                r_world, dtype=numpy.uint8
+            ).reshape(r_wH, r_wW, 3), cv2.COLOR_BGR2GRAY), (640, 360), cv2.INTER_AREA)
+            self.recent_eye_right = cv2.cvtColor(numpy.frombuffer(
+                r_rightEye, dtype=numpy.uint8
+            ).reshape(r_rH, r_rW, 3), cv2.COLOR_BGR2GRAY)
+            self.recent_eye_left = cv2.cvtColor(numpy.frombuffer(
+                r_leftEye, dtype=numpy.uint8
+            ).reshape(r_lH, r_lW, 3), cv2.COLOR_BGR2GRAY)
 
 
 if __name__=="__main__":
     ppc = PupilCoreManager()
     while True:
-        ppc.capture()
         ppc.cv2()
