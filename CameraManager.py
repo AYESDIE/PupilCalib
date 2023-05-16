@@ -87,13 +87,6 @@ class CameraManager():
         self.applyCalibrationMatrix()
         self.detectAndShowAprilTag()
 
-    def applyCalibrationMatrix(self):
-        if self.b_is_applying_calibration:
-            self.m_current_frame = cv2.undistort(self.m_current_frame, self.m_camera_matrix,
-                                                 self.m_distortion_coefficient, None, self.m_new_camera_matrix)
-            x, y, w, h = self.m_roi
-            self.m_current_frame = cv2.resize(self.m_current_frame[y:y + h, x:x + w], (self.m_current_frame.shape[1], self.m_current_frame.shape[0]), cv2.INTER_AREA)
-
     def getCurrentFrame(self):
         return self.m_current_frame
 
@@ -129,24 +122,28 @@ class CameraManager():
         self.b_is_applying_april_detection = april
         print(f"CameraManager::setAprilDetection - Detection is now {self.b_is_applying_april_detection}")
 
+    def applyCalibrationMatrix(self):
+        if self.b_is_applying_calibration:
+            self.m_current_frame = cv2.undistort(self.m_current_frame, self.m_camera_matrix,
+                                                 self.m_distortion_coefficient, None, self.m_new_camera_matrix)
+            x, y, w, h = self.m_roi
+            self.m_current_frame = cv2.resize(self.m_current_frame[y:y + h, x:x + w],
+                                              (self.m_current_frame.shape[1], self.m_current_frame.shape[0]),
+                                              cv2.INTER_AREA)
+
     def detectAndShowAprilTag(self):
         # mcc = cv2.cvtColor(self.m_current_frame, cv2.COLOR_GRAY2RGB)
         if self.b_is_applying_april_detection:
-            detection = None
-            try:
-                detection = self.detector.detect(self.m_current_frame)
-                for result in detection:
-                    (ptA, ptB, ptC, ptD) = result.corners
-                    ptB = (int(ptB[0]), int(ptB[1]))
-                    ptC = (int(ptC[0]), int(ptC[1]))
-                    ptD = (int(ptD[0]), int(ptD[1]))
-                    ptA = (int(ptA[0]), int(ptA[1]))
-                    # draw the bounding box of the AprilTag detection
-                    cv2.line(self.m_current_frame, ptA, ptC, (0, 255, 0), 10)
-                    cv2.line(self.m_current_frame, ptB, ptD, (0, 255, 0), 10)
-            except:
-                pass
-
+            detection = self.detector.detect(self.m_current_frame)
+            for result in detection:
+                (ptA, ptB, ptC, ptD) = result.corners
+                ptB = (int(ptB[0]), int(ptB[1]))
+                ptC = (int(ptC[0]), int(ptC[1]))
+                ptD = (int(ptD[0]), int(ptD[1]))
+                ptA = (int(ptA[0]), int(ptA[1]))
+                # draw the bounding box of the AprilTag detection
+                cv2.line(self.m_current_frame, ptA, ptC, (0, 255, 0), 10)
+                cv2.line(self.m_current_frame, ptB, ptD, (0, 255, 0), 10)
 
 class CoreManager(CameraManager):
     def __init__(self):

@@ -122,7 +122,7 @@ class PupilCalibManager(QWidget):
         self.pupil_manager.setCalibration(not self.pupil_manager.b_is_applying_calibration)
 
     def onPupilAprilButtonClick(self):
-        self.pupil_manager.setAprilDetection(not self.camera_manager.b_is_applying_april_detection)
+        self.pupil_manager.setAprilDetection(not self.pupil_manager.b_is_applying_april_detection)
 
     def updateFrame(self):
         self.camera_manager.captureCurrentFrame()
