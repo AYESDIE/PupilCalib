@@ -24,11 +24,6 @@ class PupilCalibManager(QWidget):
 
         # main camera stuff
         self.camera_manager = camera_manager
-        # self.mtx = None
-        # self.dist = None
-        # self.rvecs = None
-        # self.tvecs = None
-        # self.newcameramtx = None
         self.current_frame = None
         self.current_width = None
         self.current_height = None
@@ -52,35 +47,31 @@ class PupilCalibManager(QWidget):
         self.pupil_eye_right_frame = None
         self.pupil_eye_right_image = QLabel()
 
-        self.world_calib_frames = 0
-
-        self.objp = numpy.zeros((9 * 6, 3), numpy.float32)
-        self.objp[:, :2] = numpy.mgrid[0:9, 0:6].T.reshape(-1, 2)
-        self.objpoints = []  # 3d point in real world space
-        self.imgpoints = []  # 2d points in image plane.
-
-        self.showMaximized()
-        self.raise_()
 
         self.update_frame_timer = QTimer()
         self.update_frame_timer.start(1)
-
-        self.button_cooldown_timer = QTimer()
-        self.button_cooldown_timer.setSingleShot(True)
-        self.button_cooldown_timer.timeout.connect(self.calibrateWorldCamera)
-
-        self.button = QPushButton("Chessboard Calibrate")
-        self.button.clicked.connect(self.onButtonClick)
-
         self.update_frame_timer.timeout.connect(self.updateFrame)
+
+        self.world_calibrate_button = QPushButton("World Calibrate")
+        self.world_calibrate_button.clicked.connect(self.onWorldCalibrateButtonClick)
+        self.world_save_button = QPushButton("Save Calibration")
+        self.world_save_button.clicked.connect(self.onWorldSaveButtonClick)
+        self.world_load_button = QPushButton("Load Calibration")
+        self.world_load_button.clicked.connect(self.onWorldLoadButtonClick)
+        self.world_apply_button = QPushButton("Apply Calibration")
+        self.world_apply_button.clicked.connect(self.onWorldApplyButtonClick)
+        self.world_camera_layout.addWidget(self.current_image, 60)
+        self.world_camera_layout.addWidget(self.world_calibrate_button, 10)
+        self.world_camera_layout.addWidget(self.world_save_button, 10)
+        self.world_camera_layout.addWidget(self.world_load_button, 10)
+        self.world_camera_layout.addWidget(self.world_apply_button, 10)
+
+
         self.pupil_camera_layout.addWidget(self.pupil_world_image)
         self.pupil_eye_layout.addWidget(self.pupil_eye_left_image)
         self.pupil_eye_layout.addWidget(self.pupil_eye_right_image)
         self.pupil_camera_layout.addLayout(self.pupil_eye_layout)
 
-        self.world_camera_layout.addWidget(self.current_image, 40)
-        self.world_camera_layout.addWidget(self.calibrate_image, 40)
-        self.world_camera_layout.addWidget(self.button, 8)
 
         self.main_layout.addLayout(self.pupil_camera_layout, 1, 1)
         self.main_layout.addLayout(self.world_camera_layout, 1, 2)
@@ -88,9 +79,22 @@ class PupilCalibManager(QWidget):
 
         self.setLayout(self.main_layout)
 
-    def onButtonClick(self):
+        self.showMaximized()
+        self.raise_()
+
+
+    def onWorldCalibrateButtonClick(self):
         self.camera_manager.calibrateCamera()
         print(f"onButtonClick(): calibration: {self.b_calibrate_world_camera}")
+
+    def onWorldSaveButtonClick(self):
+        self.camera_manager.saveCameraCalibration()
+
+    def onWorldLoadButtonClick(self):
+        self.camera_manager.loadCameraCalibration()
+
+    def onWorldApplyButtonClick(self):
+        self.camera_manager.setCalibration(not self.camera_manager.b_is_applying_calibration)
 
     def stopWorldCalibration(self):
         self.b_calibrate_world_camera = False
@@ -115,6 +119,7 @@ class PupilCalibManager(QWidget):
         self.imgpoints = []  # 2d points in image plane.
 
     def updateFrame(self):
+        self.camera_manager.captureCurrentFrame()
         self.current_frame = self.camera_manager.getCurrentFrame()
         self.current_image.setPixmap(QPixmap(QImage(self.current_frame,
                                                     self.current_frame.shape[1],

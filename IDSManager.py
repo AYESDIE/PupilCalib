@@ -52,7 +52,7 @@ class IDSManager(CameraManager):
         self.node_map_remote_device.FindNode("TLParamsLocked").SetValue(1)
         self.node_map_remote_device.FindNode("AcquisitionStart").Execute()
 
-    def captureFrame(self):
+    def captureCurrentFrame(self):
         buffer = self.data_stream.WaitForFinishedBuffer(5000)
 
         ipl_image = ids_peak_ipl_extension.BufferToImage(buffer)
@@ -62,7 +62,6 @@ class IDSManager(CameraManager):
         self.data_stream.QueueBuffer(buffer)
 
         # Get raw image data from converted image and construct a QImage from it
-        image_np_array = converted_ipl_image.get_numpy_1D()
-        image_np_array = cv2.cvtColor(numpy.reshape(image_np_array, [converted_ipl_image.Height(), converted_ipl_image.Width(), -1]), cv2.COLOR_BGR2GRAY)
-        image_np_array = cv2.resize(image_np_array, (900, 600), cv2.INTER_AREA)
-        return image_np_array
+        self.m_current_frame = converted_ipl_image.get_numpy_1D()
+        self.m_current_frame = cv2.cvtColor(numpy.reshape(self.m_current_frame, [converted_ipl_image.Height(), converted_ipl_image.Width(), -1]), cv2.COLOR_BGR2GRAY)
+        self.m_current_frame = cv2.resize(self.m_current_frame, (900, 600), cv2.INTER_AREA)

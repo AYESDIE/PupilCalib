@@ -27,8 +27,9 @@ class CameraManager():
         self.qt_calibrate_timer.timeout.connect(self.calibrateCamera)
 
     def calibrateCamera(self):
+        print(f"CameraManager::calibrateCamera - step: {self.calibation_frame_count}")
         try:
-            ret, corners = cv2.findChessboardCorners(self.current_frame, (9, 6), None)
+            ret, corners = cv2.findChessboardCorners(self.m_current_frame, (9, 6), None)
 
             if ret:
                 self.calibation_frame_count = self.calibation_frame_count + 1
@@ -94,6 +95,20 @@ class CameraManager():
 
     def setCalibration(self, calibration: bool):
         self.b_is_applying_calibration = calibration
+        print(f"CameraManager::setCalibration - Calibration is now {self.b_is_applying_calibration}")
+
+    def saveCameraCalibration(self):
+        if self.m_new_camera_matrix is not None and self.m_camera_matrix is not None:
+            numpy.save("world_new_camera_matrix.npy", self.m_new_camera_matrix, allow_pickle=True)
+            numpy.save("world_camera_matrix.npy", self.m_camera_matrix, allow_pickle=True)
+            print("CameraManager::saveCameraCalibration - Saved successfully.")
+        else:
+            print("CameraManager::saveCameraCalibration - Calibrate the camera before saving.")
+
+    def loadCameraCalibration(self):
+        self.m_new_camera_matrix = numpy.load("world_new_camera_matrix.npy")
+        self.m_camera_matrix = numpy.load("world_camera_matrix.npy")
+        print("CameraManager::loadCameraCalibration - Loaded successfully.")
 
 
 class CoreManager():
