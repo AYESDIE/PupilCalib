@@ -161,7 +161,7 @@ class CoreManager(CameraManager):
         self.m_current_left = self.m_current_frame
         self.m_current_right = self.m_current_frame
 
-        self.calibrateCamera()
+        self.applyCalibrationMatrix()
         self.detectAndShowAprilTag()
 
     def getCurrentFrame(self):

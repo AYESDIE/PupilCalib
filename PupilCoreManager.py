@@ -95,8 +95,8 @@ class PupilCoreManager(CoreManager):
             i = i + 1
 
     def captureCurrentFrame(self):
-        self.applyCalibrationMatrix()
         self.detectAndShowAprilTag()
+        self.applyCalibrationMatrix()
 
     def ppc_thread_worker(self):
         while True:

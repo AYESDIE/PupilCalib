@@ -70,5 +70,5 @@ class IDSManager(CameraManager):
         self.m_current_frame = cv2.cvtColor(numpy.reshape(self.m_current_frame, [converted_ipl_image.Height(), converted_ipl_image.Width(), -1]), cv2.COLOR_BGR2GRAY)
         self.m_current_frame = cv2.resize(self.m_current_frame, (900, 600), cv2.INTER_AREA)
 
-        self.applyCalibrationMatrix()
         self.detectAndShowAprilTag()
+        self.applyCalibrationMatrix()
