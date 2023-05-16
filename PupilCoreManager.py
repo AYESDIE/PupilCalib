@@ -12,6 +12,8 @@ from PyQt5.QtCore import QThread
 import time
 import threading
 
+import pupil_apriltags
+
 class PupilCoreManager():
     def __init__(self):
         self.context = zmq.Context()
@@ -46,6 +48,8 @@ class PupilCoreManager():
         self.recent_world = numpy.zeros((10, 10))
         self.recent_eye_right = numpy.zeros((10, 10))
         self.recent_eye_left = numpy.zeros((10, 10))
+
+        self.detector = pupil_apriltags.Detector("tag25h9")
 
         self.pupil_thread = threading.Thread(target=self.ppc_thread_worker)
         self.pupil_thread.start()
@@ -87,12 +91,6 @@ class PupilCoreManager():
 
     def captureFrame(self):
         return [self.recent_world, self.recent_eye_right, self.recent_eye_left]
-
-    def cv2(self):
-        cv2.imshow("world", self.recent_world)
-        cv2.imshow("eye_right", self.recent_eye_right)
-        cv2.imshow("eye_left", self.recent_eye_left)
-        cv2.waitKey(1)
 
     def ppc_thread_worker(self):
         while True:
@@ -139,17 +137,44 @@ class PupilCoreManager():
                         r_lH = msg["height"]
                         b_gotLeftEye = True
 
-            self.recent_world = cv2.resize(cv2.cvtColor(numpy.frombuffer(
+            self.recent_world = cv2.convertScaleAbs(cv2.resize(cv2.cvtColor(numpy.frombuffer(
                 r_world, dtype=numpy.uint8
-            ).reshape(r_wH, r_wW, 3), cv2.COLOR_BGR2GRAY), (640, 360), cv2.INTER_AREA)
-            self.recent_eye_right = cv2.rotate(cv2.cvtColor(numpy.frombuffer(
+            ).reshape(r_wH, r_wW, 3), cv2.COLOR_BGR2GRAY), (640, 360), cv2.INTER_AREA))
+            self.recent_eye_right = cv2.convertScaleAbs(cv2.rotate(cv2.cvtColor(numpy.frombuffer(
                 r_rightEye, dtype=numpy.uint8
-            ).reshape(r_rH, r_rW, 3), cv2.COLOR_BGR2GRAY), cv2.ROTATE_180)
-            self.recent_eye_left = cv2.cvtColor(numpy.frombuffer(
+            ).reshape(r_rH, r_rW, 3), cv2.COLOR_BGR2GRAY), cv2.ROTATE_180))
+            self.recent_eye_left = cv2.convertScaleAbs(cv2.cvtColor(numpy.frombuffer(
                 r_leftEye, dtype=numpy.uint8
-            ).reshape(r_lH, r_lW, 3), cv2.COLOR_BGR2GRAY)
+            ).reshape(r_lH, r_lW, 3), cv2.COLOR_BGR2GRAY))
 
+    def applyApril(self):
+        detection = None
+        try:
+            detection = self.detector.detect(self.recent_world)
+            self.recent_world = cv2.cvtColor(self.recent_world, cv2.COLOR_GRAY2RGB)
+            for result in detection:
+                (ptA, ptB, ptC, ptD) = result.corners
+                ptB = (int(ptB[0]), int(ptB[1]))
+                ptC = (int(ptC[0]), int(ptC[1]))
+                ptD = (int(ptD[0]), int(ptD[1]))
+                ptA = (int(ptA[0]), int(ptA[1]))
+                # draw the bounding box of the AprilTag detection
+                cv2.line(self.recent_world, ptA, ptB, (0, 255, 0), 2)
+                cv2.line(self.recent_world, ptB, ptC, (0, 255, 0), 2)
+                cv2.line(self.recent_world, ptC, ptD, (0, 255, 0), 2)
+                cv2.line(self.recent_world, ptD, ptA, (0, 255, 0), 2)
+                # draw the center (x, y)-coordinates of the AprilTag
+                (cX, cY) = (int(result.center[0]), int(result.center[1]))
+                cv2.circle(self.recent_world, (cX, cY), 5, (0, 0, 255), -1)
 
+        except:
+            pass
+
+    def cv2(self):
+        cv2.imshow("world", self.recent_world)
+        cv2.imshow("eye_right", self.recent_eye_right)
+        cv2.imshow("eye_left", self.recent_eye_left)
+        cv2.waitKey(1)
 
 
 if __name__=="__main__":
