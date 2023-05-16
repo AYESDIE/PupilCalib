@@ -24,11 +24,11 @@ class PupilCalibManager(QWidget):
 
         # main camera stuff
         self.camera_manager = camera_manager
-        self.mtx = None
-        self.dist = None
-        self.rvecs = None
-        self.tvecs = None
-        self.newcameramtx = None
+        # self.mtx = None
+        # self.dist = None
+        # self.rvecs = None
+        # self.tvecs = None
+        # self.newcameramtx = None
         self.current_frame = None
         self.current_width = None
         self.current_height = None
@@ -89,11 +89,7 @@ class PupilCalibManager(QWidget):
         self.setLayout(self.main_layout)
 
     def onButtonClick(self):
-        self.b_calibrate_world_camera = True
-        if self.b_calibrate_world_camera:
-            self.button_cooldown_timer.start(500)
-            self.button.setEnabled(False)
-
+        self.camera_manager.calibrateCamera()
         print(f"onButtonClick(): calibration: {self.b_calibrate_world_camera}")
 
     def stopWorldCalibration(self):
@@ -119,17 +115,17 @@ class PupilCalibManager(QWidget):
         self.imgpoints = []  # 2d points in image plane.
 
     def updateFrame(self):
-        self.current_frame = self.pupil_manager.captureFrame()[0]
+        self.current_frame = self.camera_manager.getCurrentFrame()
         self.current_image.setPixmap(QPixmap(QImage(self.current_frame,
                                                     self.current_frame.shape[1],
                                                     self.current_frame.shape[0],
                                                     QImage.Format_Grayscale8)))
         # Calibrate stuff
         # self.calibrateWorldCamera()
-        self.applyWorldCameraCalibration()
-        self.pupil_manager.recent_world = self.calibrate_frame
-        self.pupil_manager.applyApril()
-        self.pupil_manager.cv2()
+        # self.applyWorldCameraCalibration()
+        # self.pupil_manager.recent_world = self.calibrate_frame
+        # self.pupil_manager.applyApril()
+        # self.pupil_manager.cv2()
 
         self.pupil_world_frame, self.pupil_eye_left_frame, self.pupil_eye_right_frame = self.pupil_manager.captureFrame()
         self.pupil_world_image.setPixmap(QPixmap(QImage(self.pupil_world_frame,
@@ -146,38 +142,38 @@ class PupilCalibManager(QWidget):
                                                             self.pupil_eye_right_frame.shape[1],
                                                             self.pupil_eye_right_frame.shape[0],
                                                             QImage.Format_Grayscale8)))
-
-    def applyWorldCameraCalibration(self):
-        try:
-            self.calibrate_frame = cv2.undistort(self.current_frame, self.mtx, self.dist, None, self.newcameramtx)
-            self.calibrate_image.setPixmap(QPixmap(QImage(self.calibrate_frame,
-                                                          self.calibrate_frame.shape[1],
-                                                          self.calibrate_frame.shape[0],
-                                                          QImage.Format_Grayscale8)))
-
-        except:
-            pass
-
-    def calibrateWorldCamera(self):
-        if self.b_calibrate_world_camera:
-            try:
-                ret, corners = cv2.findChessboardCorners(self.current_frame, (9, 6), None)
-
-                if ret:
-                    self.world_calib_frames = self.world_calib_frames + 1
-                    self.objpoints.append(self.objp)
-                    corners2 = cv2.cornerSubPix(self.current_frame, corners, (11, 11), (-1, -1),
-                                                (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
-                    self.imgpoints.append(corners2)
-
-                    cv2.drawChessboardCorners(self.current_frame, (9, 6), corners, ret)
-
-            except:
-                pass
-
-        if self.world_calib_frames == 30:
-            self.world_calib_frames = 0
-            self.stopWorldCalibration()
-            return
-        else:
-            self.button_cooldown_timer.start(500)
+    #
+    # def applyWorldCameraCalibration(self):
+    #     try:
+    #         self.calibrate_frame = cv2.undistort(self.current_frame, self.mtx, self.dist, None, self.newcameramtx)
+    #         self.calibrate_image.setPixmap(QPixmap(QImage(self.calibrate_frame,
+    #                                                       self.calibrate_frame.shape[1],
+    #                                                       self.calibrate_frame.shape[0],
+    #                                                       QImage.Format_Grayscale8)))
+    #
+    #     except:
+    #         pass
+    #
+    # def calibrateWorldCamera(self):
+    #     if self.b_calibrate_world_camera:
+    #         try:
+    #             ret, corners = cv2.findChessboardCorners(self.current_frame, (9, 6), None)
+    #
+    #             if ret:
+    #                 self.world_calib_frames = self.world_calib_frames + 1
+    #                 self.objpoints.append(self.objp)
+    #                 corners2 = cv2.cornerSubPix(self.current_frame, corners, (11, 11), (-1, -1),
+    #                                             (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
+    #                 self.imgpoints.append(corners2)
+    #
+    #                 cv2.drawChessboardCorners(self.current_frame, (9, 6), corners, ret)
+    #
+    #         except:
+    #             pass
+    #
+    #     if self.world_calib_frames == 30:
+    #         self.world_calib_frames = 0
+    #         self.stopWorldCalibration()
+    #         return
+    #     else:
+    #         self.button_cooldown_timer.start(500)
