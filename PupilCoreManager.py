@@ -12,10 +12,14 @@ from PyQt5.QtCore import QThread
 import time
 import threading
 
-import pupil_apriltags
+from CameraManager import CoreManager
 
-class PupilCoreManager():
+class PupilCoreManager(CoreManager):
     def __init__(self):
+        super(PupilCoreManager, self).__init__()
+
+        self.s_calibration_file = "PupilCore"
+
         self.context = zmq.Context()
         # open a req port to talk to pupil
         addr = "127.0.0.1"  # remote ip or localhost
@@ -45,14 +49,15 @@ class PupilCoreManager():
         # Set the frame format via the Network API plugin
         self.notify({"subject": "frame_publishing.set_format", "format": self.FRAME_FORMAT})
 
-        self.recent_world = numpy.zeros((10, 10))
-        self.recent_eye_right = numpy.zeros((10, 10))
-        self.recent_eye_left = numpy.zeros((10, 10))
-
-        self.detector = pupil_apriltags.Detector("tag25h9")
+        self.m_current_frame = numpy.zeros((10, 10))
+        self.m_current_right = numpy.zeros((10, 10))
+        self.m_current_left = numpy.zeros((10, 10))
 
         self.pupil_thread = threading.Thread(target=self.ppc_thread_worker)
         self.pupil_thread.start()
+
+        self.loadCameraCalibration()
+        self.setCalibration(True)
 
     def notify(self, notification):
         """Sends ``notification`` to Pupil Remote"""
@@ -89,8 +94,9 @@ class PupilCoreManager():
             print(i)
             i = i + 1
 
-    def captureFrame(self):
-        return [self.recent_world, self.recent_eye_right, self.recent_eye_left]
+    def captureCurrentFrame(self):
+        self.applyCalibrationMatrix()
+        self.detectAndShowAprilTag()
 
     def ppc_thread_worker(self):
         while True:
@@ -137,43 +143,21 @@ class PupilCoreManager():
                         r_lH = msg["height"]
                         b_gotLeftEye = True
 
-            self.recent_world = cv2.convertScaleAbs(cv2.resize(cv2.cvtColor(numpy.frombuffer(
-                r_world, dtype=numpy.uint8
-            ).reshape(r_wH, r_wW, 3), cv2.COLOR_BGR2GRAY), (640, 360), cv2.INTER_AREA))
-            self.recent_eye_right = cv2.convertScaleAbs(cv2.rotate(cv2.cvtColor(numpy.frombuffer(
+            self.m_current_frame = cv2.convertScaleAbs(
+                cv2.cvtColor(numpy.frombuffer(
+                    r_world, dtype=numpy.uint8
+                ).reshape(r_wH, r_wW, 3), cv2.COLOR_BGR2GRAY))
+            self.m_current_right = cv2.convertScaleAbs(cv2.rotate(cv2.cvtColor(numpy.frombuffer(
                 r_rightEye, dtype=numpy.uint8
             ).reshape(r_rH, r_rW, 3), cv2.COLOR_BGR2GRAY), cv2.ROTATE_180))
-            self.recent_eye_left = cv2.convertScaleAbs(cv2.cvtColor(numpy.frombuffer(
+            self.m_current_left = cv2.convertScaleAbs(cv2.cvtColor(numpy.frombuffer(
                 r_leftEye, dtype=numpy.uint8
             ).reshape(r_lH, r_lW, 3), cv2.COLOR_BGR2GRAY))
 
-    def applyApril(self):
-        detection = None
-        try:
-            detection = self.detector.detect(self.recent_world)
-            self.recent_world = cv2.cvtColor(self.recent_world, cv2.COLOR_GRAY2RGB)
-            for result in detection:
-                (ptA, ptB, ptC, ptD) = result.corners
-                ptB = (int(ptB[0]), int(ptB[1]))
-                ptC = (int(ptC[0]), int(ptC[1]))
-                ptD = (int(ptD[0]), int(ptD[1]))
-                ptA = (int(ptA[0]), int(ptA[1]))
-                # draw the bounding box of the AprilTag detection
-                cv2.line(self.recent_world, ptA, ptB, (0, 255, 0), 2)
-                cv2.line(self.recent_world, ptB, ptC, (0, 255, 0), 2)
-                cv2.line(self.recent_world, ptC, ptD, (0, 255, 0), 2)
-                cv2.line(self.recent_world, ptD, ptA, (0, 255, 0), 2)
-                # draw the center (x, y)-coordinates of the AprilTag
-                (cX, cY) = (int(result.center[0]), int(result.center[1]))
-                cv2.circle(self.recent_world, (cX, cY), 5, (0, 0, 255), -1)
-
-        except:
-            pass
-
     def cv2(self):
-        cv2.imshow("world", self.recent_world)
-        cv2.imshow("eye_right", self.recent_eye_right)
-        cv2.imshow("eye_left", self.recent_eye_left)
+        cv2.imshow("world", self.m_current_frame)
+        cv2.imshow("eye_right", self.m_current_right)
+        cv2.imshow("eye_left", self.m_current_left)
         cv2.waitKey(1)
 
 

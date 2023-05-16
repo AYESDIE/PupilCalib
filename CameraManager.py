@@ -4,6 +4,8 @@ import warnings
 import numpy
 from PyQt5.QtCore import *
 
+import pupil_apriltags
+
 
 class CameraManager():
     def __init__(self):
@@ -11,8 +13,11 @@ class CameraManager():
         self.m_camera_matrix = None
         self.m_new_camera_matrix = None
         self.m_distortion_coefficient = None
+        self.m_roi = None
+        self.s_calibration_file = "camera.npy"
 
         self.b_is_applying_calibration = False
+        self.b_is_applying_april_detection = False
 
         self.m_object_points = []
         self.m_image_points = []
@@ -25,6 +30,8 @@ class CameraManager():
         self.qt_calibrate_timer = QTimer()
         self.qt_calibrate_timer.setSingleShot(True)
         self.qt_calibrate_timer.timeout.connect(self.calibrateCamera)
+
+        self.detector = pupil_apriltags.Detector("tag25h9")
 
     def calibrateCamera(self):
         print(f"CameraManager::calibrateCamera - step: {self.calibation_frame_count}")
@@ -54,14 +61,14 @@ class CameraManager():
                 None
             )
 
-            self.m_new_camera_matrix, roi = cv2.getOptimalNewCameraMatrix(self.m_camera_matrix,
-                                                                          self.m_distortion_coefficient,
-                                                                          (self.m_current_frame.shape[1],
-                                                                           self.m_current_frame.shape[0]),
-                                                                          1,
-                                                                          (self.m_current_frame.shape[1],
-                                                                           self.m_current_frame.shape[0])
-                                                                          )
+            self.m_new_camera_matrix, self.m_roi = cv2.getOptimalNewCameraMatrix(self.m_camera_matrix,
+                                                                                 self.m_distortion_coefficient,
+                                                                                 (self.m_current_frame.shape[1],
+                                                                                  self.m_current_frame.shape[0]),
+                                                                                 1,
+                                                                                 (self.m_current_frame.shape[1],
+                                                                                  self.m_current_frame.shape[0])
+                                                                                 )
 
             self.m_object_points = []
             self.m_image_points = []
@@ -78,14 +85,14 @@ class CameraManager():
             warnings.warn("Could not capture image", ResourceWarning)
         self.m_current_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         self.applyCalibrationMatrix()
+        self.detectAndShowAprilTag()
 
     def applyCalibrationMatrix(self):
         if self.b_is_applying_calibration:
-            try:
-                self.calibrate_frame = cv2.undistort(self.m_current_frame, self.m_camera_matrix, self.m_distortion_coefficient, None, self.m_new_camera_matrix)
-            except:
-                warnings.warn("CameraManager::applyCalibrationMatrix - Please apply calibration first")
-        return
+            self.m_current_frame = cv2.undistort(self.m_current_frame, self.m_camera_matrix,
+                                                 self.m_distortion_coefficient, None, self.m_new_camera_matrix)
+            x, y, w, h = self.m_roi
+            self.m_current_frame = cv2.resize(self.m_current_frame[y:y + h, x:x + w], (self.m_current_frame.shape[1], self.m_current_frame.shape[0]), cv2.INTER_AREA)
 
     def getCurrentFrame(self):
         return self.m_current_frame
@@ -98,28 +105,68 @@ class CameraManager():
         print(f"CameraManager::setCalibration - Calibration is now {self.b_is_applying_calibration}")
 
     def saveCameraCalibration(self):
-        if self.m_new_camera_matrix is not None and self.m_camera_matrix is not None:
-            numpy.save("world_new_camera_matrix.npy", self.m_new_camera_matrix, allow_pickle=True)
-            numpy.save("world_camera_matrix.npy", self.m_camera_matrix, allow_pickle=True)
+        if self.m_new_camera_matrix is not None and self.m_camera_matrix is not None and self.m_distortion_coefficient is not None:
+            numpy.save(self.s_calibration_file + "_camera_matrix.npy", self.m_camera_matrix, allow_pickle=True)
+            numpy.save(self.s_calibration_file + "_new_camera_matrix.npy", self.m_new_camera_matrix, allow_pickle=True)
+            numpy.save(self.s_calibration_file + "_distortion_coefficient.npy", self.m_distortion_coefficient,
+                       allow_pickle=True)
+            numpy.save(self.s_calibration_file + "_roi.npy", self.m_roi, allow_pickle=True)
             print("CameraManager::saveCameraCalibration - Saved successfully.")
         else:
             print("CameraManager::saveCameraCalibration - Calibrate the camera before saving.")
 
     def loadCameraCalibration(self):
-        self.m_new_camera_matrix = numpy.load("world_new_camera_matrix.npy")
-        self.m_camera_matrix = numpy.load("world_camera_matrix.npy")
-        print("CameraManager::loadCameraCalibration - Loaded successfully.")
+        try:
+            self.m_camera_matrix = numpy.load(self.s_calibration_file + "_camera_matrix.npy")
+            self.m_new_camera_matrix = numpy.load(self.s_calibration_file + "_new_camera_matrix.npy")
+            self.m_distortion_coefficient = numpy.load(self.s_calibration_file + "_distortion_coefficient.npy")
+            self.m_roi = numpy.load(self.s_calibration_file + "_roi.npy")
+            print("CameraManager::loadCameraCalibration - Loaded successfully.")
+        except:
+            print("CameraManager::loadCameraCalibration - Failed to load Calibration Matrix")
+
+    def setAprilDetection(self, april : bool):
+        self.b_is_applying_april_detection = april
+        print(f"CameraManager::setAprilDetection - Detection is now {self.b_is_applying_april_detection}")
+
+    def detectAndShowAprilTag(self):
+        # mcc = cv2.cvtColor(self.m_current_frame, cv2.COLOR_GRAY2RGB)
+        if self.b_is_applying_april_detection:
+            detection = None
+            try:
+                detection = self.detector.detect(self.m_current_frame)
+                for result in detection:
+                    (ptA, ptB, ptC, ptD) = result.corners
+                    ptB = (int(ptB[0]), int(ptB[1]))
+                    ptC = (int(ptC[0]), int(ptC[1]))
+                    ptD = (int(ptD[0]), int(ptD[1]))
+                    ptA = (int(ptA[0]), int(ptA[1]))
+                    # draw the bounding box of the AprilTag detection
+                    cv2.line(self.m_current_frame, ptA, ptC, (0, 255, 0), 10)
+                    cv2.line(self.m_current_frame, ptB, ptD, (0, 255, 0), 10)
+            except:
+                pass
 
 
-class CoreManager():
+class CoreManager(CameraManager):
     def __init__(self):
+        super(CoreManager, self).__init__()
+        self.m_current_left = None
+        self.m_current_right = None
         pass
 
-    def captureFrame(self):
+    def captureCurrentFrame(self):
         cap = cv2.VideoCapture(1)  # video capture source camera (Here webcam of laptop)
         ret, frame = cap.read()  # return a single frame in variable `frame`
         if not ret:
             warnings.warn("Could not capture image", ResourceWarning)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        self.m_current_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        self.m_current_left = self.m_current_frame
+        self.m_current_right = self.m_current_frame
 
-        return [frame, frame, frame]
+        self.calibrateCamera()
+        self.detectAndShowAprilTag()
+
+    def getCurrentFrame(self):
+        return [self.m_current_frame, self.m_current_right, self.m_current_left]
+
