@@ -31,10 +31,12 @@ class CameraManager():
         self.qt_calibrate_timer.setSingleShot(True)
         self.qt_calibrate_timer.timeout.connect(self.calibrateCamera)
 
-        self.detector = pupil_apriltags.Detector("tag25h9")
+        self.detector = pupil_apriltags.Detector("tag36h11")
+
+        self.s_manager_name = "CameraManager"
 
     def calibrateCamera(self):
-        print(f"CameraManager::calibrateCamera - step: {self.calibation_frame_count}")
+        print(f"{self.s_manager_name}::calibrateCamera - step: {self.calibation_frame_count}")
         try:
             ret, corners = cv2.findChessboardCorners(self.m_current_frame, (9, 6), None)
 
@@ -95,7 +97,7 @@ class CameraManager():
 
     def setCalibration(self, calibration: bool):
         self.b_is_applying_calibration = calibration
-        print(f"CameraManager::setCalibration - Calibration is now {self.b_is_applying_calibration}")
+        print(f"{self.s_manager_name}::setCalibration - Calibration is now {self.b_is_applying_calibration}")
 
     def saveCameraCalibration(self):
         if self.m_new_camera_matrix is not None and self.m_camera_matrix is not None and self.m_distortion_coefficient is not None:
@@ -104,9 +106,9 @@ class CameraManager():
             numpy.save(self.s_calibration_file + "_distortion_coefficient.npy", self.m_distortion_coefficient,
                        allow_pickle=True)
             numpy.save(self.s_calibration_file + "_roi.npy", self.m_roi, allow_pickle=True)
-            print("CameraManager::saveCameraCalibration - Saved successfully.")
+            print(f"{self.s_manager_name}::saveCameraCalibration - Saved successfully.")
         else:
-            print("CameraManager::saveCameraCalibration - Calibrate the camera before saving.")
+            print(f"{self.s_manager_name}::saveCameraCalibration - Calibrate the camera before saving.")
 
     def loadCameraCalibration(self):
         try:
@@ -114,13 +116,13 @@ class CameraManager():
             self.m_new_camera_matrix = numpy.load(self.s_calibration_file + "_new_camera_matrix.npy")
             self.m_distortion_coefficient = numpy.load(self.s_calibration_file + "_distortion_coefficient.npy")
             self.m_roi = numpy.load(self.s_calibration_file + "_roi.npy")
-            print("CameraManager::loadCameraCalibration - Loaded successfully.")
+            print(f"{self.s_manager_name}::loadCameraCalibration - Loaded successfully.")
         except:
-            print("CameraManager::loadCameraCalibration - Failed to load Calibration Matrix")
+            print(f"{self.s_manager_name}::loadCameraCalibration - Failed to load Calibration Matrix")
 
     def setAprilDetection(self, april : bool):
         self.b_is_applying_april_detection = april
-        print(f"CameraManager::setAprilDetection - Detection is now {self.b_is_applying_april_detection}")
+        print(f"{self.s_manager_name}::setAprilDetection - Detection is now {self.b_is_applying_april_detection}")
 
     def applyCalibrationMatrix(self):
         if self.b_is_applying_calibration:
@@ -142,12 +144,13 @@ class CameraManager():
                 ptD = (int(ptD[0]), int(ptD[1]))
                 ptA = (int(ptA[0]), int(ptA[1]))
                 # draw the bounding box of the AprilTag detection
-                cv2.line(self.m_current_frame, ptA, ptC, (0, 255, 0), 10)
-                cv2.line(self.m_current_frame, ptB, ptD, (0, 255, 0), 10)
+                cv2.line(self.m_current_frame, ptA, ptC, (255, 255, 255), 10)
+                cv2.line(self.m_current_frame, ptB, ptD, (255, 255, 255), 10)
 
 class CoreManager(CameraManager):
     def __init__(self):
         super(CoreManager, self).__init__()
+        self.s_manager_name = "CoreManager"
         self.m_current_left = None
         self.m_current_right = None
         pass
@@ -166,4 +169,3 @@ class CoreManager(CameraManager):
 
     def getCurrentFrame(self):
         return [self.m_current_frame, self.m_current_right, self.m_current_left]
-

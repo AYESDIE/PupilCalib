@@ -12,6 +12,7 @@ import numpy
 class IDSManager(CameraManager):
     def __init__(self):
         super().__init__()
+        self.s_manager_name = "IDSManager"
         self.s_calibration_file = "IDS"
         ids_peak.Library.Initialize()
 
