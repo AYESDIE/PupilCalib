@@ -61,6 +61,8 @@ class PupilCoreManager(CoreManager):
 
         self.raw_x = 0
         self.raw_y = 0
+        self.gaze_cam_3d_point = None
+        self.gaze_world_3d_point = None
         self.confidence = 0
 
     def notify(self, notification):
@@ -87,6 +89,13 @@ class PupilCoreManager(CoreManager):
             msg = self.sub.recv()
             msg = loads(msg, raw=False)
             self.raw_x, self.raw_y = msg["norm_pos"]
+            self.gaze_cam_3d_point = numpy.append(numpy.array(msg['gaze_point_3d']), numpy.array([1]))
+
+            if self.proj_mat is not None:
+                inv_proj_mat = numpy.linalg.inv(self.proj_mat)
+                cam_3d = self.gaze_cam_3d_point.T
+                self.gaze_world_3d_point = numpy.matmul(inv_proj_mat, cam_3d)
+
             self.confidence = msg["confidence"]
         else:
             payload = unpackb(self.sub.recv(), raw=False)
