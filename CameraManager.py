@@ -34,6 +34,15 @@ class CameraManager():
 
         self.s_manager_name = "CameraManager"
 
+        self.world_origin_coords = [[None, None], [None, None]]
+        self.b_world_complete = False
+
+        self.r_vec = None
+        self.t_vec = None
+        self.r_mat = None
+
+        self.proj_mat = None
+
     def calibrateCamera(self):
         print(f"{self.s_manager_name}::calibrateCamera - step: {self.calibation_frame_count}")
         try:
@@ -138,8 +147,12 @@ class CameraManager():
 
     def detectAndShowAprilTag(self):
         # mcc = cv2.cvtColor(self.m_current_frame, cv2.COLOR_GRAY2RGB)
+        detection = self.detector.detect(self.m_current_frame)
+
+        self.world_origin_coords = numpy.zeros([4, 2], dtype = numpy.float32)
+        self.b_world_complete = False
+
         if self.b_is_applying_april_detection:
-            detection = self.detector.detect(self.m_current_frame)
             for result in detection:
                 (ptA, ptB, ptC, ptD) = result.corners
                 ptB = (int(ptB[0]), int(ptB[1]))
@@ -149,6 +162,28 @@ class CameraManager():
                 # draw the bounding box of the AprilTag detection
                 cv2.line(self.m_current_frame, ptA, ptC, (255, 255, 255), 10)
                 cv2.line(self.m_current_frame, ptB, ptD, (255, 255, 255), 10)
+
+                if len(detection) == 4:
+                    self.world_origin_coords[result.tag_id] = result.center
+
+            if len(detection) == 4:
+                world_object = numpy.array([
+                    [0, 0, 0],
+                    [0, 1, 0],
+                    [1, 0, 0],
+                    [1, 1, 0]
+                ], dtype=numpy.float32)
+                retval, self.r_vec, self.t_vec = cv2.solvePnP(world_object, self.world_origin_coords, self.m_camera_matrix, self.m_distortion_coefficient)
+                self.r_mat = numpy.array(cv2.Rodrigues(self.r_vec)[0])
+
+                #self.proj_mat = numpy.concatenate((self.r_mat, numpy.zeros([1, 3])))
+                self.proj_mat = numpy.concatenate((self.r_mat, self.t_vec.reshape(3, 1)), axis = 1)
+                self.proj_mat = numpy.concatenate((self.proj_mat, numpy.zeros([1, 4])))
+                self.proj_mat[3, 3] = 1.
+
+                print("uhm")
+
+
 
 class CoreManager(CameraManager):
     def __init__(self):
