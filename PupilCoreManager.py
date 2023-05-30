@@ -3,7 +3,7 @@ Receive world camera data from Pupil using ZMQ.
 Make sure the frame publisher plugin is loaded and confugured to gray or rgb
 """
 import zmq
-from msgpack import unpackb, packb
+from msgpack import unpackb, packb, loads
 import numpy
 import cv2
 import warnings
@@ -17,8 +17,7 @@ from CameraManager import CoreManager
 class PupilCoreManager(CoreManager):
     def __init__(self):
         super(PupilCoreManager, self).__init__()
-
-        self.s_calibration_file = "PupilCore"
+        self.s_manager_name = "PupilCoreManager"
 
         self.context = zmq.Context()
         # open a req port to talk to pupil
@@ -40,6 +39,7 @@ class PupilCoreManager(CoreManager):
         self.sub.setsockopt(zmq.SNDHWM, 20)
         #self.sub.setsockopt(zmq.CONFLATE, 1)
         self.sub.setsockopt_string(zmq.SUBSCRIBE, "frame.")
+        self.sub.setsockopt_string(zmq.SUBSCRIBE, "gaze")
 
         # set subscriptions to topics
         # recv just pupil/gaze/notifications
@@ -56,8 +56,14 @@ class PupilCoreManager(CoreManager):
         self.pupil_thread = threading.Thread(target=self.ppc_thread_worker)
         self.pupil_thread.start()
 
-        self.loadCameraCalibration()
-        self.setCalibration(True)
+        if self.loadCameraCalibration():
+            self.setCalibration(True)
+
+        self.raw_x = 0
+        self.raw_y = 0
+        self.gaze_cam_3d_point = None
+        self.gaze_world_3d_point = None
+        self.confidence = 0
 
     def notify(self, notification):
         """Sends ``notification`` to Pupil Remote"""
@@ -77,7 +83,22 @@ class PupilCoreManager(CoreManager):
         in the payload dict with key: '__raw_data__' .
         """
         topic = self.sub.recv_string()
-        payload = unpackb(self.sub.recv(), raw=False)
+        payload = None
+        msg = None
+        if "gaze" in topic:
+            msg = self.sub.recv()
+            msg = loads(msg, raw=False)
+            self.raw_x, self.raw_y = msg["norm_pos"]
+            self.gaze_cam_3d_point = numpy.append(numpy.array(msg['gaze_point_3d']), numpy.array([1]))
+
+            if self.proj_mat is not None:
+                inv_proj_mat = numpy.linalg.inv(self.proj_mat)
+                cam_3d = self.gaze_cam_3d_point.T
+                self.gaze_world_3d_point = numpy.matmul(inv_proj_mat, cam_3d)
+
+            self.confidence = msg["confidence"]
+        else:
+            payload = unpackb(self.sub.recv(), raw=False)
         extra_frames = []
         while self.sub.get(zmq.RCVMORE):
             extra_frames.append(self.sub.recv())
@@ -96,7 +117,26 @@ class PupilCoreManager(CoreManager):
 
     def captureCurrentFrame(self):
         self.detectAndShowAprilTag()
+        self.showGaze()
         self.applyCalibrationMatrix()
+
+    def showGaze(self):
+        # draw confidence circle
+        cv2.circle(self.m_current_frame, (int(self.m_current_frame.shape[1] * self.raw_x),
+                                          self.m_current_frame.shape[0] - int(
+                                              self.m_current_frame.shape[0] * self.raw_y)),
+                              radius = int(15 * (2 - self.confidence)),
+                              color = (255, 255, 255),
+                              thickness = 3
+                              )
+
+        # draw gaze circle
+        cv2.circle(self.m_current_frame, (int(self.m_current_frame.shape[1] * self.raw_x),
+                                          self.m_current_frame.shape[0] - int(
+                                              self.m_current_frame.shape[0] * self.raw_y)),
+                   radius=10,
+                   color=(255, 255, 255),
+                   thickness=cv2.FILLED)
 
     def ppc_thread_worker(self):
         while True:

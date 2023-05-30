@@ -14,7 +14,6 @@ class CameraManager():
         self.m_new_camera_matrix = None
         self.m_distortion_coefficient = None
         self.m_roi = None
-        self.s_calibration_file = "camera.npy"
 
         self.b_is_applying_calibration = False
         self.b_is_applying_april_detection = False
@@ -31,10 +30,21 @@ class CameraManager():
         self.qt_calibrate_timer.setSingleShot(True)
         self.qt_calibrate_timer.timeout.connect(self.calibrateCamera)
 
-        self.detector = pupil_apriltags.Detector("tag25h9")
+        self.detector = pupil_apriltags.Detector("tag36h11")
+
+        self.s_manager_name = "CameraManager"
+
+        self.world_origin_coords = [[None, None], [None, None]]
+        self.b_world_complete = False
+
+        self.r_vec = None
+        self.t_vec = None
+        self.r_mat = None
+
+        self.proj_mat = None
 
     def calibrateCamera(self):
-        print(f"CameraManager::calibrateCamera - step: {self.calibation_frame_count}")
+        print(f"{self.s_manager_name}::calibrateCamera - step: {self.calibation_frame_count}")
         try:
             ret, corners = cv2.findChessboardCorners(self.m_current_frame, (9, 6), None)
 
@@ -95,32 +105,36 @@ class CameraManager():
 
     def setCalibration(self, calibration: bool):
         self.b_is_applying_calibration = calibration
-        print(f"CameraManager::setCalibration - Calibration is now {self.b_is_applying_calibration}")
+        print(f"{self.s_manager_name}::setCalibration - Calibration is now {self.b_is_applying_calibration}")
 
     def saveCameraCalibration(self):
         if self.m_new_camera_matrix is not None and self.m_camera_matrix is not None and self.m_distortion_coefficient is not None:
-            numpy.save(self.s_calibration_file + "_camera_matrix.npy", self.m_camera_matrix, allow_pickle=True)
-            numpy.save(self.s_calibration_file + "_new_camera_matrix.npy", self.m_new_camera_matrix, allow_pickle=True)
-            numpy.save(self.s_calibration_file + "_distortion_coefficient.npy", self.m_distortion_coefficient,
+            numpy.save(self.s_manager_name + "_camera_matrix.npy", self.m_camera_matrix, allow_pickle=True)
+            numpy.save(self.s_manager_name + "_new_camera_matrix.npy", self.m_new_camera_matrix, allow_pickle=True)
+            numpy.save(self.s_manager_name + "_distortion_coefficient.npy", self.m_distortion_coefficient,
                        allow_pickle=True)
-            numpy.save(self.s_calibration_file + "_roi.npy", self.m_roi, allow_pickle=True)
-            print("CameraManager::saveCameraCalibration - Saved successfully.")
+            numpy.save(self.s_manager_name + "_roi.npy", self.m_roi, allow_pickle=True)
+            print(f"{self.s_manager_name}::saveCameraCalibration - Saved successfully.")
+            return True
         else:
-            print("CameraManager::saveCameraCalibration - Calibrate the camera before saving.")
+            print(f"{self.s_manager_name}::saveCameraCalibration - Calibrate the camera before saving.")
+            return False
 
     def loadCameraCalibration(self):
         try:
-            self.m_camera_matrix = numpy.load(self.s_calibration_file + "_camera_matrix.npy")
-            self.m_new_camera_matrix = numpy.load(self.s_calibration_file + "_new_camera_matrix.npy")
-            self.m_distortion_coefficient = numpy.load(self.s_calibration_file + "_distortion_coefficient.npy")
-            self.m_roi = numpy.load(self.s_calibration_file + "_roi.npy")
-            print("CameraManager::loadCameraCalibration - Loaded successfully.")
+            self.m_camera_matrix = numpy.load(self.s_manager_name + "_camera_matrix.npy")
+            self.m_new_camera_matrix = numpy.load(self.s_manager_name + "_new_camera_matrix.npy")
+            self.m_distortion_coefficient = numpy.load(self.s_manager_name + "_distortion_coefficient.npy")
+            self.m_roi = numpy.load(self.s_manager_name + "_roi.npy")
+            print(f"{self.s_manager_name}::loadCameraCalibration - Loaded successfully.")
+            return True
         except:
-            print("CameraManager::loadCameraCalibration - Failed to load Calibration Matrix")
+            print(f"{self.s_manager_name}::loadCameraCalibration - Failed to load Calibration Matrix")
+            return False
 
     def setAprilDetection(self, april : bool):
         self.b_is_applying_april_detection = april
-        print(f"CameraManager::setAprilDetection - Detection is now {self.b_is_applying_april_detection}")
+        print(f"{self.s_manager_name}::setAprilDetection - Detection is now {self.b_is_applying_april_detection}")
 
     def applyCalibrationMatrix(self):
         if self.b_is_applying_calibration:
@@ -133,8 +147,12 @@ class CameraManager():
 
     def detectAndShowAprilTag(self):
         # mcc = cv2.cvtColor(self.m_current_frame, cv2.COLOR_GRAY2RGB)
+        detection = self.detector.detect(self.m_current_frame)
+
+        self.world_origin_coords = numpy.zeros([4, 2], dtype = numpy.float32)
+        self.b_world_complete = False
+
         if self.b_is_applying_april_detection:
-            detection = self.detector.detect(self.m_current_frame)
             for result in detection:
                 (ptA, ptB, ptC, ptD) = result.corners
                 ptB = (int(ptB[0]), int(ptB[1]))
@@ -142,12 +160,35 @@ class CameraManager():
                 ptD = (int(ptD[0]), int(ptD[1]))
                 ptA = (int(ptA[0]), int(ptA[1]))
                 # draw the bounding box of the AprilTag detection
-                cv2.line(self.m_current_frame, ptA, ptC, (0, 255, 0), 10)
-                cv2.line(self.m_current_frame, ptB, ptD, (0, 255, 0), 10)
+                cv2.line(self.m_current_frame, ptA, ptC, (255, 255, 255), 10)
+                cv2.line(self.m_current_frame, ptB, ptD, (255, 255, 255), 10)
+
+                if len(detection) == 4:
+                    self.world_origin_coords[result.tag_id] = result.center
+
+            if len(detection) == 4:
+                world_object = numpy.array([
+                    [0, 0, 0],
+                    [0, 1, 0],
+                    [1, 0, 0],
+                    [1, 1, 0]
+                ], dtype=numpy.float32)
+                retval, self.r_vec, self.t_vec = cv2.solvePnP(world_object, self.world_origin_coords, self.m_camera_matrix, self.m_distortion_coefficient)
+                self.r_mat = numpy.array(cv2.Rodrigues(self.r_vec)[0])
+
+                #self.proj_mat = numpy.concatenate((self.r_mat, numpy.zeros([1, 3])))
+                self.proj_mat = numpy.concatenate((self.r_mat, self.t_vec.reshape(3, 1)), axis = 1)
+                self.proj_mat = numpy.concatenate((self.proj_mat, numpy.zeros([1, 4])))
+                self.proj_mat[3, 3] = 1.
+
+                print("uhm")
+
+
 
 class CoreManager(CameraManager):
     def __init__(self):
         super(CoreManager, self).__init__()
+        self.s_manager_name = "CoreManager"
         self.m_current_left = None
         self.m_current_right = None
         pass
@@ -166,4 +207,3 @@ class CoreManager(CameraManager):
 
     def getCurrentFrame(self):
         return [self.m_current_frame, self.m_current_right, self.m_current_left]
-
