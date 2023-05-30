@@ -13,7 +13,6 @@ class IDSManager(CameraManager):
     def __init__(self):
         super().__init__()
         self.s_manager_name = "IDSManager"
-        self.s_calibration_file = "IDS"
         ids_peak.Library.Initialize()
 
         # Initialize and find device
@@ -54,8 +53,8 @@ class IDSManager(CameraManager):
         self.node_map_remote_device.FindNode("TLParamsLocked").SetValue(1)
         self.node_map_remote_device.FindNode("AcquisitionStart").Execute()
 
-        self.loadCameraCalibration()
-        self.setCalibration(True)
+        if self.loadCameraCalibration():
+            self.setCalibration(True)
 
     def captureCurrentFrame(self):
         buffer = self.data_stream.WaitForFinishedBuffer(5000)

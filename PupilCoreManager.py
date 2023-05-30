@@ -19,8 +19,6 @@ class PupilCoreManager(CoreManager):
         super(PupilCoreManager, self).__init__()
         self.s_manager_name = "PupilCoreManager"
 
-        self.s_calibration_file = "PupilCore"
-
         self.context = zmq.Context()
         # open a req port to talk to pupil
         addr = "127.0.0.1"  # remote ip or localhost
@@ -58,8 +56,8 @@ class PupilCoreManager(CoreManager):
         self.pupil_thread = threading.Thread(target=self.ppc_thread_worker)
         self.pupil_thread.start()
 
-        self.loadCameraCalibration()
-        self.setCalibration(True)
+        if self.loadCameraCalibration():
+            self.setCalibration(True)
 
         self.raw_x = 0
         self.raw_y = 0

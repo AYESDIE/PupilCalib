@@ -14,7 +14,6 @@ class CameraManager():
         self.m_new_camera_matrix = None
         self.m_distortion_coefficient = None
         self.m_roi = None
-        self.s_calibration_file = "camera.npy"
 
         self.b_is_applying_calibration = False
         self.b_is_applying_april_detection = False
@@ -101,24 +100,28 @@ class CameraManager():
 
     def saveCameraCalibration(self):
         if self.m_new_camera_matrix is not None and self.m_camera_matrix is not None and self.m_distortion_coefficient is not None:
-            numpy.save(self.s_calibration_file + "_camera_matrix.npy", self.m_camera_matrix, allow_pickle=True)
-            numpy.save(self.s_calibration_file + "_new_camera_matrix.npy", self.m_new_camera_matrix, allow_pickle=True)
-            numpy.save(self.s_calibration_file + "_distortion_coefficient.npy", self.m_distortion_coefficient,
+            numpy.save(self.s_manager_name + "_camera_matrix.npy", self.m_camera_matrix, allow_pickle=True)
+            numpy.save(self.s_manager_name + "_new_camera_matrix.npy", self.m_new_camera_matrix, allow_pickle=True)
+            numpy.save(self.s_manager_name + "_distortion_coefficient.npy", self.m_distortion_coefficient,
                        allow_pickle=True)
-            numpy.save(self.s_calibration_file + "_roi.npy", self.m_roi, allow_pickle=True)
+            numpy.save(self.s_manager_name + "_roi.npy", self.m_roi, allow_pickle=True)
             print(f"{self.s_manager_name}::saveCameraCalibration - Saved successfully.")
+            return True
         else:
             print(f"{self.s_manager_name}::saveCameraCalibration - Calibrate the camera before saving.")
+            return False
 
     def loadCameraCalibration(self):
         try:
-            self.m_camera_matrix = numpy.load(self.s_calibration_file + "_camera_matrix.npy")
-            self.m_new_camera_matrix = numpy.load(self.s_calibration_file + "_new_camera_matrix.npy")
-            self.m_distortion_coefficient = numpy.load(self.s_calibration_file + "_distortion_coefficient.npy")
-            self.m_roi = numpy.load(self.s_calibration_file + "_roi.npy")
+            self.m_camera_matrix = numpy.load(self.s_manager_name + "_camera_matrix.npy")
+            self.m_new_camera_matrix = numpy.load(self.s_manager_name + "_new_camera_matrix.npy")
+            self.m_distortion_coefficient = numpy.load(self.s_manager_name + "_distortion_coefficient.npy")
+            self.m_roi = numpy.load(self.s_manager_name + "_roi.npy")
             print(f"{self.s_manager_name}::loadCameraCalibration - Loaded successfully.")
+            return True
         except:
             print(f"{self.s_manager_name}::loadCameraCalibration - Failed to load Calibration Matrix")
+            return False
 
     def setAprilDetection(self, april : bool):
         self.b_is_applying_april_detection = april

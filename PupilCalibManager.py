@@ -41,7 +41,7 @@ class PupilCalibManager(QWidget):
 
 
         self.update_frame_timer = QTimer()
-        self.update_frame_timer.start(20)
+        self.update_frame_timer.start(10)
         self.update_frame_timer.timeout.connect(self.updateFrame)
 
         self.world_calibrate_button = QPushButton("World Calibrate")
