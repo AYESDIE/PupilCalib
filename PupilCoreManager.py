@@ -33,7 +33,7 @@ class PupilCoreManager(CoreManager):
         # open a sub port to listen to pupil
         self.sub = self.context.socket(zmq.SUB)
         self.sub.connect("tcp://{}:{}".format(addr, sub_port))
-        self.sub.setsockopt(zmq.LINGER, 1)
+        # self.sub.setsockopt(zmq.LINGER, 1)
         #self.sub.setsockopt(zmq.RCVHWM, 10)
         self.sub.setsockopt(zmq.RCVHWM, 20)
         self.sub.setsockopt(zmq.SNDHWM, 20)
@@ -108,12 +108,6 @@ class PupilCoreManager(CoreManager):
 
     def has_new_data_available(self):
         return self.sub.get(zmq.EVENTS) & zmq.POLLIN
-
-    def qqthread(self):
-        i = 1
-        while True:
-            print(i)
-            i = i + 1
 
     def captureCurrentFrame(self):
         self.detectAndShowAprilTag()
