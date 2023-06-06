@@ -43,6 +43,9 @@ class CameraManager():
 
         self.proj_mat = None
 
+        self.camera_3d_point_place = None
+        self.image_p = None
+
     def calibrateCamera(self):
         print(f"{self.s_manager_name}::calibrateCamera - step: {self.calibation_frame_count}")
         try:
@@ -127,6 +130,8 @@ class CameraManager():
             self.m_distortion_coefficient = numpy.load(self.s_manager_name + "_distortion_coefficient.npy")
             self.m_roi = numpy.load(self.s_manager_name + "_roi.npy")
             print(f"{self.s_manager_name}::loadCameraCalibration - Loaded successfully.")
+            print(f"{self.s_manager_name}::loadCameraCalibration - Camera Matrix:\n{self.m_camera_matrix}")
+            print(f"{self.s_manager_name}::loadCameraCalibration - New Camera Matrix:\n{self.m_new_camera_matrix}")
             return True
         except:
             print(f"{self.s_manager_name}::loadCameraCalibration - Failed to load Calibration Matrix")
@@ -153,6 +158,22 @@ class CameraManager():
         self.b_world_complete = False
 
         if self.b_is_applying_april_detection:
+            cv2.circle(self.m_current_frame, (int(50), int(100)),
+                       radius=10,
+                       color=(255, 255, 255),
+                       thickness=3
+                       )
+
+            if self.image_p is not None:
+                try:
+                    cv2.circle(self.m_current_frame, (int(self.image_p[0]), int(self.image_p[1])),
+                               radius=10,
+                               color=(255, 255, 255),
+                               thickness=3
+                               )
+                except:
+                    pass
+
             for result in detection:
                 (ptA, ptB, ptC, ptD) = result.corners
                 ptB = (int(ptB[0]), int(ptB[1]))
@@ -165,6 +186,7 @@ class CameraManager():
 
                 if len(detection) == 4:
                     self.world_origin_coords[result.tag_id] = result.center
+                    
 
             if len(detection) == 4:
                 world_object = numpy.array([
@@ -176,12 +198,15 @@ class CameraManager():
                 retval, self.r_vec, self.t_vec = cv2.solvePnP(world_object, self.world_origin_coords, self.m_camera_matrix, self.m_distortion_coefficient)
                 self.r_mat = numpy.array(cv2.Rodrigues(self.r_vec)[0])
 
-                #self.proj_mat = numpy.concatenate((self.r_mat, numpy.zeros([1, 3])))
-                self.proj_mat = numpy.concatenate((self.r_mat, self.t_vec.reshape(3, 1)), axis = 1)
-                self.proj_mat = numpy.concatenate((self.proj_mat, numpy.zeros([1, 4])))
-                self.proj_mat[3, 3] = 1.
+                proj_mat = numpy.concatenate((self.r_mat, self.t_vec.reshape(3, 1)), axis = 1)
+                proj_mat = numpy.concatenate((proj_mat, numpy.zeros([1, 4])))
+                proj_mat[3, 3] = 1.
+                self.proj_mat = proj_mat
 
-                print("uhm")
+    def setWorldCoords(self, coords):
+        if self.proj_mat is not None and coords is not None:
+            self.camera_3d_point_place = numpy.matmul(self.proj_mat, coords)[:3]
+            self.image_p = cv2.projectPoints(self.camera_3d_point_place, self.r_vec, self.t_vec, self.m_camera_matrix, self.m_distortion_coefficient)[0][0][0]
 
 
 
