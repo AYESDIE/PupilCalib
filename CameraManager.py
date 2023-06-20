@@ -152,12 +152,12 @@ class CameraManager():
 
     def detectAndShowAprilTag(self):
         # mcc = cv2.cvtColor(self.m_current_frame, cv2.COLOR_GRAY2RGB)
-        detection = self.detector.detect(self.m_current_frame)
-
-        self.world_origin_coords = numpy.zeros([4, 2], dtype = numpy.float32)
-        self.b_world_complete = False
-
         if self.b_is_applying_april_detection:
+            detection = self.detector.detect(self.m_current_frame)
+
+            self.world_origin_coords = numpy.zeros([5, 2], dtype=numpy.float32)
+            self.b_world_complete = False
+
             cv2.circle(self.m_current_frame, (int(50), int(100)),
                        radius=10,
                        color=(255, 255, 255),
@@ -184,18 +184,18 @@ class CameraManager():
                 cv2.line(self.m_current_frame, ptA, ptC, (255, 255, 255), 10)
                 cv2.line(self.m_current_frame, ptB, ptD, (255, 255, 255), 10)
 
-                if len(detection) == 4:
+                if len(detection) == 5:
                     self.world_origin_coords[result.tag_id] = result.center
                     
 
-            if len(detection) == 4:
+            if len(detection) == 5:
                 world_object = numpy.array([
                     [0, 0, 0],
                     [0, 1, 0],
                     [1, 0, 0],
                     [1, 1, 0]
                 ], dtype=numpy.float32)
-                retval, self.r_vec, self.t_vec = cv2.solvePnP(world_object, self.world_origin_coords, self.m_camera_matrix, self.m_distortion_coefficient)
+                retval, self.r_vec, self.t_vec = cv2.solvePnP(world_object, self.world_origin_coords[0:4], self.m_camera_matrix, self.m_distortion_coefficient)
                 self.r_mat = numpy.array(cv2.Rodrigues(self.r_vec)[0])
 
                 proj_mat = numpy.concatenate((self.r_mat, self.t_vec.reshape(3, 1)), axis = 1)
@@ -214,8 +214,8 @@ class CoreManager(CameraManager):
     def __init__(self):
         super(CoreManager, self).__init__()
         self.s_manager_name = "CoreManager"
-        self.m_current_left = None
-        self.m_current_right = None
+        self.m_current_left = numpy.zeros([10, 10])
+        self.m_current_right = numpy.zeros([10, 10])
         pass
 
     def captureCurrentFrame(self):
