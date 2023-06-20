@@ -10,6 +10,9 @@ class VideoManager(CameraManager.CameraManager):
 
         self.cap = cv2.VideoCapture(path)
 
+        if self.loadCameraCalibration():
+            self.setCalibration(True)
+
     def captureCurrentFrame(self):
         ret, m_current_frame = self.cap.read()
 
@@ -30,6 +33,9 @@ class CoreVideoManager(CameraManager.CoreManager):
         self.s_manager_name = "CoreVideoManager"
 
         self.cap = cv2.VideoCapture(path)
+
+        if self.loadCameraCalibration():
+            self.setCalibration(True)
 
     def captureCurrentFrame(self):
         ret, m_current_frame = self.cap.read()

@@ -125,7 +125,8 @@ class PupilCalibManager(QWidget):
         self.pupil_manager.setAprilDetection(not self.pupil_manager.b_is_applying_april_detection)
 
     def updateFrame(self):
-        #self.camera_manager.setWorldCoords(self.pupil_manager.gaze_world_3d_point)
+        # uhm = self.pupil_manager.calculate_XYZ(self.pupil_manager.test_point)
+        # self.camera_manager.setTestCoords(uhm)
         self.camera_manager.captureCurrentFrame()
         current_frame = self.camera_manager.getCurrentFrame()
         self.current_image.setPixmap(QPixmap(QImage(current_frame,

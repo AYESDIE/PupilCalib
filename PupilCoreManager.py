@@ -116,6 +116,9 @@ class PupilCoreManager(CoreManager):
 
     def showGaze(self):
         # draw confidence circle
+        self.test_point = [int(self.m_current_frame.shape[1] * self.raw_x),
+                                          self.m_current_frame.shape[0] - int(
+                                              self.m_current_frame.shape[0] * self.raw_y)]
         cv2.circle(self.m_current_frame, (int(self.m_current_frame.shape[1] * self.raw_x),
                                           self.m_current_frame.shape[0] - int(
                                               self.m_current_frame.shape[0] * self.raw_y)),

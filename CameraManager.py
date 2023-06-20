@@ -46,6 +46,8 @@ class CameraManager():
         self.camera_3d_point_place = None
         self.image_p = None
 
+        self.test_point = None
+
     def calibrateCamera(self):
         print(f"{self.s_manager_name}::calibrateCamera - step: {self.calibation_frame_count}")
         try:
@@ -175,6 +177,9 @@ class CameraManager():
                     pass
 
             for result in detection:
+                if result.tag_id == 4:
+                    # self.test_point = result.center
+                    continue
                 (ptA, ptB, ptC, ptD) = result.corners
                 ptB = (int(ptB[0]), int(ptB[1]))
                 ptC = (int(ptC[0]), int(ptC[1]))
@@ -195,6 +200,7 @@ class CameraManager():
                     [1, 0, 0],
                     [1, 1, 0]
                 ], dtype=numpy.float32)
+
                 retval, self.r_vec, self.t_vec = cv2.solvePnP(world_object, self.world_origin_coords[0:4], self.m_camera_matrix, self.m_distortion_coefficient)
                 self.r_mat = numpy.array(cv2.Rodrigues(self.r_vec)[0])
 
@@ -203,12 +209,30 @@ class CameraManager():
                 proj_mat[3, 3] = 1.
                 self.proj_mat = proj_mat
 
-    def setWorldCoords(self, coords):
+    def setTestCoords(self, coords):
         if self.proj_mat is not None and coords is not None:
-            self.camera_3d_point_place = numpy.matmul(self.proj_mat, coords)[:3]
-            self.image_p = cv2.projectPoints(self.camera_3d_point_place, self.r_vec, self.t_vec, self.m_camera_matrix, self.m_distortion_coefficient)[0][0][0]
+            # print(coords)
+            # self.camera_3d_point_place = numpy.matmul(self.proj_mat, coords)[:3]
+            self.image_p = cv2.projectPoints(coords, self.r_vec, self.t_vec, self.m_camera_matrix, self.m_distortion_coefficient)[0][0][0]
 
 
+    def calculate_XYZ(self, tp):
+        if tp is None:
+            return None
+
+        u = tp[0]
+        v = tp[1]
+        scaling_factor = 1.75
+
+        uv_1 = numpy.array([[u, v, 1]], dtype = numpy.float32)
+        uv_1 = uv_1.T
+
+        suv_1 = scaling_factor * uv_1
+        xyz_c = numpy.linalg.inv(self.m_new_camera_matrix).dot(suv_1)
+        xyz_c = xyz_c - self.t_vec
+        XYZ = numpy.linalg.inv(self.r_mat).dot(xyz_c)
+
+        return XYZ
 
 class CoreManager(CameraManager):
     def __init__(self):
