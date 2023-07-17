@@ -178,7 +178,7 @@ class CameraManager():
 
             for result in detection:
                 if result.tag_id == 4:
-                    # self.test_point = result.center
+                    self.test_point = result.center
                     continue
                 (ptA, ptB, ptC, ptD) = result.corners
                 ptB = (int(ptB[0]), int(ptB[1]))
